@@ -4,3 +4,6 @@ __pycache__
 *.py
 *.yaml
 *.ini
+*.jpg
+*.png
+notebook copy.ipynb
