@@ -1,7 +1,6 @@
 __pycache__
 *.mp4
 *.png
-utils.py
 *.yaml
 *.ini
 *.jpg
