@@ -6,7 +6,11 @@ import numpy as np
 import cv2
 import math
 
-
+BATSMAN_HEIGHT=191
+CORNER_POINT_A=(-140,0,0)
+CORNER_POINT_B=(140,0,0)
+CORNER_POINT_C=(166, -321,0)
+CORNER_POINT_D=(-166, -321,0)
 
 def open_video(video_path):
     vid=list()
@@ -128,7 +132,18 @@ def visualize_bounding_boxes(detections, vid, classes):
     return output_frames
 
 
-def bowlerSideEstimation(detections):
+
+
+def unzoom(x,y,detections,frame):
+    d_height=191
+    f_height=int(detections.loc[(detections["Class"].isin(["Batsman"]))&(detections["Frame"]==frame)]["H"])
+    zf=f_height/d_height
+    x/=zf
+    y/=zf
+    return (int(x),int(y))
+
+
+def estimate_bowling_side(detections):
     bat_ball = detections.loc[detections['Class'].isin(['Ball', 'Batsman'])]
 
     # group rows by Frame
@@ -146,3 +161,39 @@ def bowlerSideEstimation(detections):
                 return "LEFT"
             else:
                 return "RIGHT"
+
+def calc_coords_of_ball_relative_to_batsman(detections,cls,f):
+    Batsman=detections.loc[detections["Class"].isin(["Batsman"]) & (detections["Frame"]==f)]
+    Ball=detections.loc[detections["Class"].isin([cls]) & (detections["Frame"]==f)]
+    P_X_Batsman=(Batsman["Xmin"]+Batsman["Xmax"])/2
+    P_Y_Batsman=Batsman["Ymax"]
+    X=int(Ball['Xc'])-int(P_X_Batsman)
+    # Y=(frame_height(vid)-int(Ball['Yc']))-(frame_height(vid)-int(Batsman['Yc']))
+    Y=int(P_Y_Batsman)-int(Ball['Yc'])
+    return (X,Y)
+            
+def estimate_bounce_point(detections):
+    f_impact=detect_impact_frame(detections)
+    f_bounce=detect_bounce_frame(detections,f_impact)
+    (X,Y)=calc_coords_of_ball_relative_to_batsman(detections,"Ball",f_bounce)
+    (X,Y)=unzoom(X,Y,detections,f_bounce)
+    return (X,Y)
+
+def estimate_impact_point(detections):
+    f_impact=detect_impact_frame(detections)
+    (X,Y)=calc_coords_of_ball_relative_to_batsman(detections,"Ball",f_impact)
+    (X,Y)=unzoom(X,Y,detections,f_impact)
+    return (X,Y)
+
+def estimate_trajectory(detections):
+    f_impact=detect_impact_frame(detections)
+    (X,Y)=calc_coords_of_ball_relative_to_batsman(detections,"Ball",f_impact+1)
+    (X,Y)=unzoom(X,Y,detections,f_impact)
+    return (X,Y)
+
+def estimate_release_point(bowlingSide):
+    if "LEFT":
+        return (-83,-321,BATSMAN_HEIGHT)
+    else:
+        return (83,-321,BATSMAN_HEIGHT)
+        
